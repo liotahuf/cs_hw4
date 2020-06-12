@@ -110,9 +110,10 @@ void CORE_BlockedMT() {
 
 		switch (currInstr->opcode)
 		{
-		case CMD_LOAD: // dst <- Mem[src1 + src2]  (src2 may be an immediate)
+		case CMD_LOAD:
+		{// dst <- Mem[src1 + src2]  (src2 may be an immediate)
 			//read from memory and load into register accordinto to instr
-				
+
 			//first,get load ints src
 			int address = blockedThreadVec[blockedCPUthreadID].threadContext.reg[currInstr->src1_index];
 			if (currInstr->isSrc2Imm) {
@@ -122,18 +123,19 @@ void CORE_BlockedMT() {
 			{
 				address += blockedThreadVec[blockedCPUthreadID].threadContext.reg[currInstr->src2_index_imm];
 			}
-				
-				
+
+
 			//load instrc dst
-			int *dst = &(blockedThreadVec[blockedCPUthreadID].threadContext.reg[currInstr->dst_index]);
+			int* dst = &(blockedThreadVec[blockedCPUthreadID].threadContext.reg[currInstr->dst_index]);
 			//load into register
 			SIM_MemDataRead(address, dst);
 			//update status
 			blockedThreadVec[blockedCPUthreadID].myStatus = LOADING;
 
 			break;
+		}
 		case CMD_STORE: // Mem[dst + src2] <- src1  (src2 may be an immediate)
-			//read from src register and store it into memory at address
+		{	//read from src register and store it into memory at address
 
 			//first, calculate dst +scr2 a
 			int address = blockedThreadVec[blockedCPUthreadID].threadContext.reg[currInstr->dst_index];
@@ -154,36 +156,47 @@ void CORE_BlockedMT() {
 			blockedThreadVec[blockedCPUthreadID].myStatus = STORING;
 
 			break;
-
+		}
 		case CMD_HALT:
+		{
 			blockedThreadVec[blockedCPUthreadID].myStatus = DONE;
 			break;
+		}
+			
 
 		case CMD_ADD:		// dst <- src1 + src2
-
+		{
 			int scr1 = blockedThreadVec[blockedCPUthreadID].threadContext.reg[currInstr->src1_index];
 			int scr2 = blockedThreadVec[blockedCPUthreadID].threadContext.reg[currInstr->src2_index_imm];
 			blockedThreadVec[blockedCPUthreadID].threadContext.reg[currInstr->dst_index] = scr1 + scr2;
 			break;
+		}
+			
 
 		case CMD_SUB:		// dst <- src1 - src2
+		{
 			int scr1 = blockedThreadVec[blockedCPUthreadID].threadContext.reg[currInstr->src1_index];
 			int scr2 = blockedThreadVec[blockedCPUthreadID].threadContext.reg[currInstr->src2_index_imm];
 			blockedThreadVec[blockedCPUthreadID].threadContext.reg[currInstr->dst_index] = scr1 - scr2;
 			break;
+		}
+			
 	
 		case CMD_ADDI:		// dst <- src1 + imm
+		{
 			int scr1 = blockedThreadVec[blockedCPUthreadID].threadContext.reg[currInstr->src1_index];
 			int scr2 = currInstr->src2_index_imm;
 			blockedThreadVec[blockedCPUthreadID].threadContext.reg[currInstr->dst_index] = scr1 + scr2;
 			break;
+		}
 
-		case CMD_SUBI:		// dst <- src1 - imm
+		case CMD_SUBI:	// dst <- src1 - imm
+		{
 			int scr1 = blockedThreadVec[blockedCPUthreadID].threadContext.reg[currInstr->src1_index];
 			int scr2 = currInstr->src2_index_imm;
 			blockedThreadVec[blockedCPUthreadID].threadContext.reg[currInstr->dst_index] = scr1 - scr2;
 			break;
-			
+		}
 		default:
 
 			break;
@@ -269,7 +282,7 @@ void CORE_FinegrainedMT() {
 		switch (currInstr->opcode)
 		{
 		case CMD_LOAD: // dst <- Mem[src1 + src2]  (src2 may be an immediate)
-			//read from memory and load into register accordinto to instr
+		{//read from memory and load into register accordinto to instr
 
 			//first,get load ints src
 			int address = fgThreadVec[fgCPUthreadID].threadContext.reg[currInstr->src1_index];
@@ -290,8 +303,9 @@ void CORE_FinegrainedMT() {
 			fgThreadVec[fgCPUthreadID].myStatus = LOADING;
 
 			break;
+		}
 		case CMD_STORE: // Mem[dst + src2] <- src1  (src2 may be an immediate)
-			//read from src register and store it into memory at address
+		{	//read from src register and store it into memory at address
 
 			//first, calculate dst +scr2 a
 			int address = fgThreadVec[fgCPUthreadID].threadContext.reg[currInstr->dst_index];
@@ -312,36 +326,46 @@ void CORE_FinegrainedMT() {
 			fgThreadVec[fgCPUthreadID].myStatus = STORING;
 
 			break;
-
+		}
 		case CMD_HALT:
+		{
 			fgThreadVec[fgCPUthreadID].myStatus = DONE;
 			break;
-
+		}
 		case CMD_ADD:		// dst <- src1 + src2
-
+		{
 			int scr1 = fgThreadVec[fgCPUthreadID].threadContext.reg[currInstr->src1_index];
 			int scr2 = fgThreadVec[fgCPUthreadID].threadContext.reg[currInstr->src2_index_imm];
 			fgThreadVec[fgCPUthreadID].threadContext.reg[currInstr->dst_index] = scr1 + scr2;
 			break;
+		}
 
 		case CMD_SUB:		// dst <- src1 - src2
+		{
 			int scr1 = fgThreadVec[fgCPUthreadID].threadContext.reg[currInstr->src1_index];
 			int scr2 = fgThreadVec[fgCPUthreadID].threadContext.reg[currInstr->src2_index_imm];
 			fgThreadVec[fgCPUthreadID].threadContext.reg[currInstr->dst_index] = scr1 - scr2;
 			break;
+		}
+			
 
 		case CMD_ADDI:		// dst <- src1 + imm
+		{
 			int scr1 = fgThreadVec[fgCPUthreadID].threadContext.reg[currInstr->src1_index];
 			int scr2 = currInstr->src2_index_imm;
 			fgThreadVec[fgCPUthreadID].threadContext.reg[currInstr->dst_index] = scr1 + scr2;
 			break;
+		}
+			
 
 		case CMD_SUBI:		// dst <- src1 - imm
+		{
 			int scr1 = fgThreadVec[fgCPUthreadID].threadContext.reg[currInstr->src1_index];
 			int scr2 = currInstr->src2_index_imm;
 			fgThreadVec[fgCPUthreadID].threadContext.reg[currInstr->dst_index] = scr1 - scr2;
 			break;
-
+		}
+			
 		default:
 
 			break;

@@ -21,7 +21,7 @@ typedef enum {
 } status ;
 
 typedef struct myThread {
-	int * reg;
+	int reg[REGS_COUNT];
 	int threadId;
 	int PC;
 	int loadCnt;

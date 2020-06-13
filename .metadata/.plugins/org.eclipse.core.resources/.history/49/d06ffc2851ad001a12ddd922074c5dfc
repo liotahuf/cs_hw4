@@ -21,7 +21,7 @@ typedef enum {
 } status ;
 
 typedef struct myThread {
-	int * reg;
+	int reg[REGS_COUNT];
 	int threadId;
 	int PC;
 	int loadCnt;
@@ -60,7 +60,7 @@ void CORE_BlockedMT() {
 	{
 		thread_t curr;
 		curr.PC = 0;
-		curr.reg= new int[REGS_COUNT];
+		//curr.reg= new int[REGS_COUNT];
 		for (int j = 0; j < REGS_COUNT; j++)
 		{
 			curr.reg[j] = 0;
@@ -229,7 +229,7 @@ void CORE_FinegrainedMT() {
 	{
 		thread_t curr;
 		curr.PC = 0;
-		curr.reg= new int[REGS_COUNT];
+		//curr.reg= new int[REGS_COUNT];
 		for (int j = 0; j < REGS_COUNT; j++)
 		{
 			curr.reg[j] = 0;
@@ -397,6 +397,7 @@ void CORE_FinegrainedMT() {
 		fgThreadVec[fgCPUthreadID].PC += 1;
 		//update not ready instrctutions that a cycle has passed
 		updateThreadsCnts(1,FG);
+		delete currInstr;
 	}	
 }
 

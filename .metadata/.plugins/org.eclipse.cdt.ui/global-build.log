@@ -306,3 +306,17 @@ make all
 make: Warning: File 'subdir.mk' has modification time 1.1 s in the future
 make: Nothing to be done for 'all'.
 make: warning:  Clock skew detected.  Your build may be incomplete.
+10:50:28 **** Incremental Build of configuration Debug for project hw4_debug ****
+make all 
+make: Warning: File 'subdir.mk' has modification time 0.89 s in the future
+Building file: ../core_api.cpp
+Invoking: GCC C++ Compiler
+g++ -O0 -g3 -Wall -c -fmessage-length=0 -MMD -MP -MF"core_api.d" -MT"core_api.o" -o "core_api.o" "../core_api.cpp"
+Finished building: ../core_api.cpp
+ 
+Building target: hw4_debug
+Invoking: GCC C++ Linker
+g++  -o "hw4_debug"  ./.metadata/.plugins/org.eclipse.cdt.make.core/specs.o  ./core_api.o ./main.o ./sim_api.o   
+Finished building target: hw4_debug
+ 
+make: warning:  Clock skew detected.  Your build may be incomplete.

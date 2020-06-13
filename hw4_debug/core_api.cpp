@@ -292,7 +292,7 @@ void CORE_FinegrainedMT() {
 		//do instruction 
 
 		Instruction* currInstr = new Instruction;
-		SIM_MemInstRead(fgThreadVec[fgCPUthreadID].PC, currInstr, fgThreadVec[fgCPUthreadID].threadId);
+		SIM_MemInstRead(fgThreadVec[fgCPUthreadID].PC, currInstr, fgCPUthreadID);
 
 		//debug erase when done
 		/*printf("\tThread id :%d\n",fgCPUthreadID);
@@ -429,7 +429,7 @@ void CORE_FinegrainedMT_CTX(tcontext* context, int threadid) {
 
 		for(int i=0;i<REGS_COUNT;i++)
 		{
-			context[threadid].reg[i] =blockedThreadVec[threadid].reg[i];
+			context[threadid].reg[i] =fgThreadVec[threadid].reg[i];
 		}
 }
 

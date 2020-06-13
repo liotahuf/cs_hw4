@@ -21,7 +21,7 @@ typedef enum {
 } status ;
 
 typedef struct myThread {
-	tcontext threadContext;
+	int * reg;
 	int threadId;
 	int PC;
 	int loadCnt;
@@ -60,9 +60,10 @@ void CORE_BlockedMT() {
 	{
 		thread_t curr;
 		curr.PC = 0;
+		curr.reg= new int[REGS_COUNT];
 		for (int j = 0; j < REGS_COUNT; j++)
 		{
-			curr.threadContext.reg[j] = 0;
+			curr.reg[j] = 0;
 		}
 		curr.threadId = i;
 		curr.loadCnt = 0;
@@ -107,7 +108,7 @@ void CORE_BlockedMT() {
 		
 		//do instruction 
 		
-		Instruction* currInstr;
+		Instruction* currInstr = new Instruction;
 		SIM_MemInstRead((uint32_t)blockedThreadVec[blockedCPUthreadID].PC, currInstr,blockedCPUthreadID);
 
 		switch (currInstr->opcode)
@@ -117,18 +118,18 @@ void CORE_BlockedMT() {
 			//read from memory and load into register accordinto to instr
 
 			//first,get load ints src
-			int address = blockedThreadVec[blockedCPUthreadID].threadContext.reg[currInstr->src1_index];
+			int address = blockedThreadVec[blockedCPUthreadID].reg[currInstr->src1_index];
 			if (currInstr->isSrc2Imm) {
 				address += currInstr->src2_index_imm;
 			}
 			else
 			{
-				address += blockedThreadVec[blockedCPUthreadID].threadContext.reg[currInstr->src2_index_imm];
+				address += blockedThreadVec[blockedCPUthreadID].reg[currInstr->src2_index_imm];
 			}
 
 
 			//load instrc dst
-			int* dst = &(blockedThreadVec[blockedCPUthreadID].threadContext.reg[currInstr->dst_index]);
+			int* dst = &(blockedThreadVec[blockedCPUthreadID].reg[currInstr->dst_index]);
 			//load into register
 			SIM_MemDataRead(address, dst);
 			//update status
@@ -140,18 +141,18 @@ void CORE_BlockedMT() {
 		{	//read from src register and store it into memory at address
 
 			//first, calculate dst +scr2 a
-			int address = blockedThreadVec[blockedCPUthreadID].threadContext.reg[currInstr->dst_index];
+			int address = blockedThreadVec[blockedCPUthreadID].reg[currInstr->dst_index];
 			if (currInstr->isSrc2Imm) {
 				address += currInstr->src2_index_imm;
 			}
 			else
 			{
-				address += blockedThreadVec[blockedCPUthreadID].threadContext.reg[currInstr->src2_index_imm];
+				address += blockedThreadVec[blockedCPUthreadID].reg[currInstr->src2_index_imm];
 			}
 
 			//get the value of regs[src1]
 
-			int value = blockedThreadVec[blockedCPUthreadID].threadContext.reg[currInstr->src1_index];
+			int value = blockedThreadVec[blockedCPUthreadID].reg[currInstr->src1_index];
 
 			//store value into Mem[address]
 			SIM_MemDataWrite(address, value);
@@ -168,35 +169,35 @@ void CORE_BlockedMT() {
 
 		case CMD_ADD:		// dst <- src1 + src2
 		{
-			int scr1 = blockedThreadVec[blockedCPUthreadID].threadContext.reg[currInstr->src1_index];
-			int scr2 = blockedThreadVec[blockedCPUthreadID].threadContext.reg[currInstr->src2_index_imm];
-			blockedThreadVec[blockedCPUthreadID].threadContext.reg[currInstr->dst_index] = scr1 + scr2;
+			int scr1 = blockedThreadVec[blockedCPUthreadID].reg[currInstr->src1_index];
+			int scr2 = blockedThreadVec[blockedCPUthreadID].reg[currInstr->src2_index_imm];
+			blockedThreadVec[blockedCPUthreadID].reg[currInstr->dst_index] = scr1 + scr2;
 			break;
 		}
 			
 
 		case CMD_SUB:		// dst <- src1 - src2
 		{
-			int scr1 = blockedThreadVec[blockedCPUthreadID].threadContext.reg[currInstr->src1_index];
-			int scr2 = blockedThreadVec[blockedCPUthreadID].threadContext.reg[currInstr->src2_index_imm];
-			blockedThreadVec[blockedCPUthreadID].threadContext.reg[currInstr->dst_index] = scr1 - scr2;
+			int scr1 = blockedThreadVec[blockedCPUthreadID].reg[currInstr->src1_index];
+			int scr2 = blockedThreadVec[blockedCPUthreadID].reg[currInstr->src2_index_imm];
+			blockedThreadVec[blockedCPUthreadID].reg[currInstr->dst_index] = scr1 - scr2;
 			break;
 		}
 			
 	
 		case CMD_ADDI:		// dst <- src1 + imm
 		{
-			int scr1 = blockedThreadVec[blockedCPUthreadID].threadContext.reg[currInstr->src1_index];
+			int scr1 = blockedThreadVec[blockedCPUthreadID].reg[currInstr->src1_index];
 			int scr2 = currInstr->src2_index_imm;
-			blockedThreadVec[blockedCPUthreadID].threadContext.reg[currInstr->dst_index] = scr1 + scr2;
+			blockedThreadVec[blockedCPUthreadID].reg[currInstr->dst_index] = scr1 + scr2;
 			break;
 		}
 
 		case CMD_SUBI:	// dst <- src1 - imm
 		{
-			int scr1 = blockedThreadVec[blockedCPUthreadID].threadContext.reg[currInstr->src1_index];
+			int scr1 = blockedThreadVec[blockedCPUthreadID].reg[currInstr->src1_index];
 			int scr2 = currInstr->src2_index_imm;
-			blockedThreadVec[blockedCPUthreadID].threadContext.reg[currInstr->dst_index] = scr1 - scr2;
+			blockedThreadVec[blockedCPUthreadID].reg[currInstr->dst_index] = scr1 - scr2;
 			break;
 		}
 		default:
@@ -222,15 +223,16 @@ void CORE_FinegrainedMT() {
 	clkCntFG = 0;
 
 	//initiate therad vector
-	fgThreadVec.push_back({});
+	//fgThreadVec.push_back({});
 	int threadNum = SIM_GetThreadsNum();
 	for (int i = 0; i < threadNum; i++)
 	{
 		thread_t curr;
 		curr.PC = 0;
+		curr.reg= new int[REGS_COUNT];
 		for (int j = 0; j < REGS_COUNT; j++)
 		{
-			curr.threadContext.reg[j] = 0;
+			curr.reg[j] = 0;
 		}
 		curr.threadId = i;
 		curr.loadCnt = 0;
@@ -282,7 +284,7 @@ void CORE_FinegrainedMT() {
 
 		//do instruction 
 
-		Instruction* currInstr;
+		Instruction* currInstr = new Instruction;
 		SIM_MemInstRead(fgThreadVec[fgCPUthreadID].PC, currInstr, fgThreadVec[fgCPUthreadID].threadId);
 
 		switch (currInstr->opcode)
@@ -291,18 +293,18 @@ void CORE_FinegrainedMT() {
 		{//read from memory and load into register accordinto to instr
 
 			//first,get load ints src
-			int address = fgThreadVec[fgCPUthreadID].threadContext.reg[currInstr->src1_index];
+			int address = fgThreadVec[fgCPUthreadID].reg[currInstr->src1_index];
 			if (currInstr->isSrc2Imm) {
 				address += currInstr->src2_index_imm;
 			}
 			else
 			{
-				address += fgThreadVec[fgCPUthreadID].threadContext.reg[currInstr->src2_index_imm];
+				address += fgThreadVec[fgCPUthreadID].reg[currInstr->src2_index_imm];
 			}
 
 
 			//load instrc dst
-			int* dst = &(fgThreadVec[fgCPUthreadID].threadContext.reg[currInstr->dst_index]);
+			int* dst = &(fgThreadVec[fgCPUthreadID].reg[currInstr->dst_index]);
 			//load into register
 			SIM_MemDataRead(address, dst);
 			//update status
@@ -314,18 +316,18 @@ void CORE_FinegrainedMT() {
 		{	//read from src register and store it into memory at address
 
 			//first, calculate dst +scr2 a
-			int address = fgThreadVec[fgCPUthreadID].threadContext.reg[currInstr->dst_index];
+			int address = fgThreadVec[fgCPUthreadID].reg[currInstr->dst_index];
 			if (currInstr->isSrc2Imm) {
 				address += currInstr->src2_index_imm;
 			}
 			else
 			{
-				address += fgThreadVec[fgCPUthreadID].threadContext.reg[currInstr->src2_index_imm];
+				address += fgThreadVec[fgCPUthreadID].reg[currInstr->src2_index_imm];
 			}
 
 			//get the value of regs[src1]
 
-			int value = fgThreadVec[fgCPUthreadID].threadContext.reg[currInstr->src1_index];
+			int value = fgThreadVec[fgCPUthreadID].reg[currInstr->src1_index];
 
 			//store value into Mem[address]
 			SIM_MemDataWrite(address, value);
@@ -340,35 +342,35 @@ void CORE_FinegrainedMT() {
 		}
 		case CMD_ADD:		// dst <- src1 + src2
 		{
-			int scr1 = fgThreadVec[fgCPUthreadID].threadContext.reg[currInstr->src1_index];
-			int scr2 = fgThreadVec[fgCPUthreadID].threadContext.reg[currInstr->src2_index_imm];
-			fgThreadVec[fgCPUthreadID].threadContext.reg[currInstr->dst_index] = scr1 + scr2;
+			int scr1 = fgThreadVec[fgCPUthreadID].reg[currInstr->src1_index];
+			int scr2 = fgThreadVec[fgCPUthreadID].reg[currInstr->src2_index_imm];
+			fgThreadVec[fgCPUthreadID].reg[currInstr->dst_index] = scr1 + scr2;
 			break;
 		}
 
 		case CMD_SUB:		// dst <- src1 - src2
 		{
-			int scr1 = fgThreadVec[fgCPUthreadID].threadContext.reg[currInstr->src1_index];
-			int scr2 = fgThreadVec[fgCPUthreadID].threadContext.reg[currInstr->src2_index_imm];
-			fgThreadVec[fgCPUthreadID].threadContext.reg[currInstr->dst_index] = scr1 - scr2;
+			int scr1 = fgThreadVec[fgCPUthreadID].reg[currInstr->src1_index];
+			int scr2 = fgThreadVec[fgCPUthreadID].reg[currInstr->src2_index_imm];
+			fgThreadVec[fgCPUthreadID].reg[currInstr->dst_index] = scr1 - scr2;
 			break;
 		}
 			
 
 		case CMD_ADDI:		// dst <- src1 + imm
 		{
-			int scr1 = fgThreadVec[fgCPUthreadID].threadContext.reg[currInstr->src1_index];
+			int scr1 = fgThreadVec[fgCPUthreadID].reg[currInstr->src1_index];
 			int scr2 = currInstr->src2_index_imm;
-			fgThreadVec[fgCPUthreadID].threadContext.reg[currInstr->dst_index] = scr1 + scr2;
+			fgThreadVec[fgCPUthreadID].reg[currInstr->dst_index] = scr1 + scr2;
 			break;
 		}
 			
 
 		case CMD_SUBI:		// dst <- src1 - imm
 		{
-			int scr1 = fgThreadVec[fgCPUthreadID].threadContext.reg[currInstr->src1_index];
+			int scr1 = fgThreadVec[fgCPUthreadID].reg[currInstr->src1_index];
 			int scr2 = currInstr->src2_index_imm;
-			fgThreadVec[fgCPUthreadID].threadContext.reg[currInstr->dst_index] = scr1 - scr2;
+			fgThreadVec[fgCPUthreadID].reg[currInstr->dst_index] = scr1 - scr2;
 			break;
 		}
 			
@@ -399,12 +401,24 @@ double CORE_FinegrainedMT_CPI(){
 
 void CORE_BlockedMT_CTX(tcontext* context, int threadid) {
 
-	*context = blockedThreadVec[threadid].threadContext;
+	tcontext* curr = new tcontext;
+	for(int i=0;i<REGS_COUNT;i++)
+	{
+		curr->reg[i] =blockedThreadVec[threadid].reg[i];
+	}
+
+	context = curr;
 }
 
 void CORE_FinegrainedMT_CTX(tcontext* context, int threadid) {
 
-	*context = fgThreadVec[threadid].threadContext;
+	tcontext* curr = new tcontext;
+		for(int i=0;i<REGS_COUNT;i++)
+		{
+			curr->reg[i] =blockedThreadVec[threadid].reg[i];
+		}
+
+		context = curr;
 }
 
 

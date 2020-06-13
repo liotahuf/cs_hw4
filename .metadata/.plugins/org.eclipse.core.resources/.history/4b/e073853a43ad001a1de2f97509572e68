@@ -1,0 +1,537 @@
+/* 046267 Computer Architecture - Spring 2020 - HW #4 */
+
+#include "core_api.h"
+#include "sim_api.h"
+
+
+#include <stdio.h>
+#include <vector>
+#include <queue>
+
+typedef enum {
+	BLOCKEDMT = 0,
+	FG = 1,
+} CPU_T;
+
+typedef enum {
+	READY = 0,
+	LOADING =1,     
+	STORING =2,     
+	DONE =3, 
+} status ;
+
+typedef struct myThread {
+	tcontext threadContext;
+	int threadId;
+	int PC;
+	int loadCnt;
+	int storeCnt;
+	status myStatus;
+
+}thread_t;
+
+//BlockedMT globals
+int blockedCPUthreadID;
+std::vector<thread_t> blockedThreadVec;
+int instCntBlocked;
+int clkCntBloked;
+
+//Fine grained globals
+int fgCPUthreadID;
+std::vector<thread_t> fgThreadVec;
+int instCntFG;
+int clkCntFG;
+
+//helper functions
+void updateThreadsCnts(int clckCycles ,CPU_T cpu);
+int searchReadyThread(int startingIdx, CPU_T cpu);
+bool isSimDone( CPU_T cpu);
+
+
+void CORE_BlockedMT() {
+	//initiate variables
+	instCntBlocked = 0;
+	clkCntBloked = 0;
+	
+	//initiate therad vector
+	//blockedThreadVec.push_back({});
+	int threadNum = SIM_GetThreadsNum();
+	for (int i = 0; i < threadNum; i++)
+	{
+		blockedThreadVec[i] = new thread_t;
+		curr->PC = 0;
+		//curr.threadContext.reg= new int[REGS_COUNT];
+		for (int j = 0; j < REGS_COUNT; j++)
+		{
+			curr->threadContext.reg[j] = 0;
+		}
+		curr->threadId = i;
+		curr->loadCnt = 0;
+		curr->storeCnt = 0;
+		curr->myStatus =READY;
+		blockedThreadVec.push_back(*curr);
+			   	
+	}
+
+	//initiate CPU thread idx
+	blockedCPUthreadID = 0;
+
+
+	//start running 
+	while (!isSimDone(BLOCKEDMT))
+	{
+		if (blockedThreadVec[blockedCPUthreadID].myStatus != READY)
+		{
+			//search for READY thread
+			int  nextThreadID = searchReadyThread(blockedCPUthreadID, BLOCKEDMT);
+			if (nextThreadID == -1)
+			{
+				//update clock cycle
+				clkCntBloked++;
+				//update not ready instrctutions that a cycle has passed
+				updateThreadsCnts(1, BLOCKEDMT);
+				continue;
+
+			}
+			else
+			{
+				//do context switch
+				//update clock cycle
+				clkCntBloked += SIM_GetSwitchCycles();
+				//update not ready instrctutions that a cycle has passed
+				updateThreadsCnts(SIM_GetSwitchCycles(), BLOCKEDMT);
+				//update CPU thread iD
+				blockedCPUthreadID = nextThreadID;
+			}
+		}
+		
+		
+		//do instruction 
+		
+		Instruction* currInstr;
+		SIM_MemInstRead((uint32_t)blockedThreadVec[blockedCPUthreadID].PC, currInstr,blockedCPUthreadID);
+
+		switch (currInstr->opcode)
+		{
+		case CMD_LOAD:
+		{// dst <- Mem[src1 + src2]  (src2 may be an immediate)
+			//read from memory and load into register accordinto to instr
+
+			//first,get load ints src
+			int address = blockedThreadVec[blockedCPUthreadID].threadContext.reg[currInstr->src1_index];
+			if (currInstr->isSrc2Imm) {
+				address += currInstr->src2_index_imm;
+			}
+			else
+			{
+				address += blockedThreadVec[blockedCPUthreadID].threadContext.reg[currInstr->src2_index_imm];
+			}
+
+
+			//load instrc dst
+			int* dst = &(blockedThreadVec[blockedCPUthreadID].threadContext.reg[currInstr->dst_index]);
+			//load into register
+			SIM_MemDataRead(address, dst);
+			//update status
+			blockedThreadVec[blockedCPUthreadID].myStatus = LOADING;
+
+			break;
+		}
+		case CMD_STORE: // Mem[dst + src2] <- src1  (src2 may be an immediate)
+		{	//read from src register and store it into memory at address
+
+			//first, calculate dst +scr2 a
+			int address = blockedThreadVec[blockedCPUthreadID].threadContext.reg[currInstr->dst_index];
+			if (currInstr->isSrc2Imm) {
+				address += currInstr->src2_index_imm;
+			}
+			else
+			{
+				address += blockedThreadVec[blockedCPUthreadID].threadContext.reg[currInstr->src2_index_imm];
+			}
+
+			//get the value of regs[src1]
+
+			int value = blockedThreadVec[blockedCPUthreadID].threadContext.reg[currInstr->src1_index];
+
+			//store value into Mem[address]
+			SIM_MemDataWrite(address, value);
+			blockedThreadVec[blockedCPUthreadID].myStatus = STORING;
+
+			break;
+		}
+		case CMD_HALT:
+		{
+			blockedThreadVec[blockedCPUthreadID].myStatus = DONE;
+			break;
+		}
+			
+
+		case CMD_ADD:		// dst <- src1 + src2
+		{
+			int scr1 = blockedThreadVec[blockedCPUthreadID].threadContext.reg[currInstr->src1_index];
+			int scr2 = blockedThreadVec[blockedCPUthreadID].threadContext.reg[currInstr->src2_index_imm];
+			blockedThreadVec[blockedCPUthreadID].threadContext.reg[currInstr->dst_index] = scr1 + scr2;
+			break;
+		}
+			
+
+		case CMD_SUB:		// dst <- src1 - src2
+		{
+			int scr1 = blockedThreadVec[blockedCPUthreadID].threadContext.reg[currInstr->src1_index];
+			int scr2 = blockedThreadVec[blockedCPUthreadID].threadContext.reg[currInstr->src2_index_imm];
+			blockedThreadVec[blockedCPUthreadID].threadContext.reg[currInstr->dst_index] = scr1 - scr2;
+			break;
+		}
+			
+	
+		case CMD_ADDI:		// dst <- src1 + imm
+		{
+			int scr1 = blockedThreadVec[blockedCPUthreadID].threadContext.reg[currInstr->src1_index];
+			int scr2 = currInstr->src2_index_imm;
+			blockedThreadVec[blockedCPUthreadID].threadContext.reg[currInstr->dst_index] = scr1 + scr2;
+			break;
+		}
+
+		case CMD_SUBI:	// dst <- src1 - imm
+		{
+			int scr1 = blockedThreadVec[blockedCPUthreadID].threadContext.reg[currInstr->src1_index];
+			int scr2 = currInstr->src2_index_imm;
+			blockedThreadVec[blockedCPUthreadID].threadContext.reg[currInstr->dst_index] = scr1 - scr2;
+			break;
+		}
+		default:
+
+			break;
+		}
+
+		//update clock cycle
+		clkCntBloked++;
+		//update instrc cnt
+		instCntBlocked++;
+		//update PC of thread
+		blockedThreadVec[blockedCPUthreadID].PC += 1;
+		//update not ready instrctutions that a cycle has passed
+		updateThreadsCnts(1, BLOCKEDMT);
+	}	
+
+}
+
+void CORE_FinegrainedMT() {
+	//initiate variables
+	instCntFG = 0;
+	clkCntFG = 0;
+
+	//initiate therad vector
+	fgThreadVec.push_back({});
+	int threadNum = SIM_GetThreadsNum();
+	for (int i = 0; i < threadNum; i++)
+	{
+		thread_t curr;
+		curr.PC = 0;
+		for (int j = 0; j < REGS_COUNT; j++)
+		{
+			curr.threadContext.reg[j] = 0;
+		}
+		curr.threadId = i;
+		curr.loadCnt = 0;
+		curr.storeCnt = 0;
+		curr.myStatus =READY;
+		fgThreadVec.push_back(curr);
+
+
+
+	}
+
+	//initiate CPU thread idx
+	fgCPUthreadID = 0;
+
+	bool firstInst = true;
+
+	//start running 
+	while (!isSimDone(FG))
+	{
+		if (!firstInst)
+		{
+			//try changing to next thread
+			fgCPUthreadID = (fgCPUthreadID + 1) % SIM_GetThreadsNum();
+
+			//if next tread not ready, search one who is
+			if (fgThreadVec[fgCPUthreadID].myStatus != READY)
+			{
+				//search for READY thread
+				int  nextThreadID = searchReadyThread(fgCPUthreadID,FG);
+				if (nextThreadID == -1) // no thread available,so dont switch
+				{
+					//if no one is ready, dont switch
+					fgCPUthreadID = (fgCPUthreadID - 1) % SIM_GetThreadsNum();
+					//update clock cycle
+					clkCntFG++;
+					//update not ready instrctutions that a cycle has passed
+					updateThreadsCnts(1,FG);
+					continue;
+
+				}
+				else
+				{					
+					fgCPUthreadID = nextThreadID;
+				}
+			}
+		}
+
+		firstInst = false;
+
+		//do instruction 
+
+		Instruction* currInstr;
+		SIM_MemInstRead(fgThreadVec[fgCPUthreadID].PC, currInstr, fgThreadVec[fgCPUthreadID].threadId);
+
+		switch (currInstr->opcode)
+		{
+		case CMD_LOAD: // dst <- Mem[src1 + src2]  (src2 may be an immediate)
+		{//read from memory and load into register accordinto to instr
+
+			//first,get load ints src
+			int address = fgThreadVec[fgCPUthreadID].threadContext.reg[currInstr->src1_index];
+			if (currInstr->isSrc2Imm) {
+				address += currInstr->src2_index_imm;
+			}
+			else
+			{
+				address += fgThreadVec[fgCPUthreadID].threadContext.reg[currInstr->src2_index_imm];
+			}
+
+
+			//load instrc dst
+			int* dst = &(fgThreadVec[fgCPUthreadID].threadContext.reg[currInstr->dst_index]);
+			//load into register
+			SIM_MemDataRead(address, dst);
+			//update status
+			fgThreadVec[fgCPUthreadID].myStatus = LOADING;
+
+			break;
+		}
+		case CMD_STORE: // Mem[dst + src2] <- src1  (src2 may be an immediate)
+		{	//read from src register and store it into memory at address
+
+			//first, calculate dst +scr2 a
+			int address = fgThreadVec[fgCPUthreadID].threadContext.reg[currInstr->dst_index];
+			if (currInstr->isSrc2Imm) {
+				address += currInstr->src2_index_imm;
+			}
+			else
+			{
+				address += fgThreadVec[fgCPUthreadID].threadContext.reg[currInstr->src2_index_imm];
+			}
+
+			//get the value of regs[src1]
+
+			int value = fgThreadVec[fgCPUthreadID].threadContext.reg[currInstr->src1_index];
+
+			//store value into Mem[address]
+			SIM_MemDataWrite(address, value);
+			fgThreadVec[fgCPUthreadID].myStatus = STORING;
+
+			break;
+		}
+		case CMD_HALT:
+		{
+			fgThreadVec[fgCPUthreadID].myStatus = DONE;
+			break;
+		}
+		case CMD_ADD:		// dst <- src1 + src2
+		{
+			int scr1 = fgThreadVec[fgCPUthreadID].threadContext.reg[currInstr->src1_index];
+			int scr2 = fgThreadVec[fgCPUthreadID].threadContext.reg[currInstr->src2_index_imm];
+			fgThreadVec[fgCPUthreadID].threadContext.reg[currInstr->dst_index] = scr1 + scr2;
+			break;
+		}
+
+		case CMD_SUB:		// dst <- src1 - src2
+		{
+			int scr1 = fgThreadVec[fgCPUthreadID].threadContext.reg[currInstr->src1_index];
+			int scr2 = fgThreadVec[fgCPUthreadID].threadContext.reg[currInstr->src2_index_imm];
+			fgThreadVec[fgCPUthreadID].threadContext.reg[currInstr->dst_index] = scr1 - scr2;
+			break;
+		}
+			
+
+		case CMD_ADDI:		// dst <- src1 + imm
+		{
+			int scr1 = fgThreadVec[fgCPUthreadID].threadContext.reg[currInstr->src1_index];
+			int scr2 = currInstr->src2_index_imm;
+			fgThreadVec[fgCPUthreadID].threadContext.reg[currInstr->dst_index] = scr1 + scr2;
+			break;
+		}
+			
+
+		case CMD_SUBI:		// dst <- src1 - imm
+		{
+			int scr1 = fgThreadVec[fgCPUthreadID].threadContext.reg[currInstr->src1_index];
+			int scr2 = currInstr->src2_index_imm;
+			fgThreadVec[fgCPUthreadID].threadContext.reg[currInstr->dst_index] = scr1 - scr2;
+			break;
+		}
+			
+		default:
+
+			break;
+		}
+
+		//update clock cycle
+		clkCntFG++;
+		//update instrc cnt
+		instCntFG++;
+		//update PC of thread
+		fgThreadVec[fgCPUthreadID].PC += 1;
+	}	
+}
+
+double CORE_BlockedMT_CPI(){
+	
+	return ((double)clkCntBloked/instCntBlocked);
+}
+
+double CORE_FinegrainedMT_CPI(){
+	
+	return ((double)clkCntFG / instCntFG);
+
+}
+
+void CORE_BlockedMT_CTX(tcontext* context, int threadid) {
+
+	*context = blockedThreadVec[threadid].threadContext;
+}
+
+void CORE_FinegrainedMT_CTX(tcontext* context, int threadid) {
+
+	*context = fgThreadVec[threadid].threadContext;
+}
+
+
+
+/*------------------------------------------------------------------------------------------------------------*/
+//our functions
+void updateThreadsCnts(int clckCycles, CPU_T cpu)
+{
+
+	if (cpu == BLOCKEDMT)
+	{
+		int threadNum = SIM_GetThreadsNum();
+		for (int i = 0; i < threadNum; i++)
+		{
+			if (blockedThreadVec[i].myStatus == LOADING)
+			{
+				blockedThreadVec[i].loadCnt += clckCycles;
+
+				if (blockedThreadVec[i].loadCnt >= SIM_GetLoadLat())
+				{
+					blockedThreadVec[i].myStatus = READY;
+					blockedThreadVec[i].loadCnt = 0;
+				}
+			}
+			else if (blockedThreadVec[i].myStatus == STORING)
+			{
+				blockedThreadVec[i].storeCnt += clckCycles;
+
+				if (blockedThreadVec[i].storeCnt >= SIM_GetStoreLat())
+				{
+					blockedThreadVec[i].myStatus = READY;
+					blockedThreadVec[i].storeCnt = 0;
+				}
+			}
+		}
+		return;
+	}
+
+	int threadNum = SIM_GetThreadsNum();
+	for (int i = 0; i < threadNum; i++)
+	{
+		if (fgThreadVec[i].myStatus == LOADING)
+		{
+			fgThreadVec[i].loadCnt += clckCycles;
+
+			if (fgThreadVec[i].loadCnt > SIM_GetLoadLat())
+			{
+				fgThreadVec[i].myStatus = READY;
+				fgThreadVec[i].loadCnt = 0;
+			}
+		}
+		else if (fgThreadVec[i].myStatus == STORING)
+		{
+			fgThreadVec[i].storeCnt += clckCycles;
+
+			if (fgThreadVec[i].storeCnt > SIM_GetStoreLat())
+			{
+				fgThreadVec[i].myStatus = READY;
+				fgThreadVec[i].storeCnt = 0;
+			}
+		}
+	}
+	
+
+}
+
+int searchReadyThread(int startingIdx, CPU_T cpu)
+{
+
+	if (cpu == BLOCKEDMT)
+	{
+		if (blockedThreadVec[startingIdx].myStatus == READY)
+		{
+			return startingIdx;
+		}
+		int threadsNum = SIM_GetThreadsNum();
+		int nextIdx = (startingIdx + 1) % (threadsNum);
+		for (; nextIdx != startingIdx; nextIdx = (nextIdx + 1) % (threadsNum))
+		{
+			if (blockedThreadVec[nextIdx].myStatus == READY)
+			{
+				return nextIdx;
+			}
+		}
+
+		return -1;
+	}
+
+	if (fgThreadVec[startingIdx].myStatus == READY)
+	{
+		return startingIdx;
+	}
+	int threadsNum = SIM_GetThreadsNum();
+	int nextIdx = (startingIdx + 1) % (threadsNum);
+	for (; nextIdx != startingIdx; nextIdx = (nextIdx + 1) % (threadsNum))
+	{
+		if (fgThreadVec[nextIdx].myStatus == READY)
+		{
+			return nextIdx;
+		}
+	}
+
+	return -1;
+
+	
+}
+
+bool isSimDone(CPU_T cpu)
+{
+	
+	if (cpu == BLOCKEDMT)
+	{
+		for (int i = 0; i < SIM_GetThreadsNum(); i++)
+		{
+			if (blockedThreadVec[i].myStatus != DONE)
+				return false;
+		}
+		return true;
+	}
+
+	for (int i = 0; i < SIM_GetThreadsNum(); i++)
+	{
+		if (fgThreadVec[i].myStatus != DONE)
+			return false;
+	}
+	return true;
+
+	
+}

@@ -252,9 +252,6 @@ void CORE_FinegrainedMT() {
 	//start running 
 	while (!isSimDone(FG))
 	{
-		//debug,erase when done
-//		printf("clock cycle number:%d\n",clkCntFG);
-
 		if (!firstInst)
 		{
 			//try changing to next thread
@@ -267,9 +264,6 @@ void CORE_FinegrainedMT() {
 				int  nextThreadID = searchReadyThread(fgCPUthreadID,FG);
 				if (nextThreadID == -1) // no thread available,so dont switch
 				{
-					//debug,erase when done
-					//printf("\tCMD:idle\n");
-
 					//if no one is ready, dont switch
 					fgCPUthreadID = (fgCPUthreadID - 1) % SIM_GetThreadsNum();
 					//update clock cycle
@@ -292,10 +286,6 @@ void CORE_FinegrainedMT() {
 
 		Instruction* currInstr = new Instruction;
 		SIM_MemInstRead(fgThreadVec[fgCPUthreadID].PC, currInstr, fgThreadVec[fgCPUthreadID].threadId);
-
-		//debug erase when done
-		/*printf("\tThread id :%d\n",fgCPUthreadID);
-		printf("\tCMD:%d\n",currInstr->opcode);*/
 
 		switch (currInstr->opcode)
 		{
@@ -395,8 +385,6 @@ void CORE_FinegrainedMT() {
 		instCntFG++;
 		//update PC of thread
 		fgThreadVec[fgCPUthreadID].PC += 1;
-		//update not ready instrctutions that a cycle has passed
-		updateThreadsCnts(1,FG);
 	}	
 }
 
@@ -457,7 +445,7 @@ void updateThreadsCnts(int clckCycles, CPU_T cpu)
 			{
 				blockedThreadVec[i].storeCnt += clckCycles;
 
-				if (blockedThreadVec[i].storeCnt > SIM_GetStoreLat())
+				if (blockedThreadVec[i].storeCnt >= SIM_GetStoreLat())
 				{
 					blockedThreadVec[i].myStatus = READY;
 					blockedThreadVec[i].storeCnt = 0;

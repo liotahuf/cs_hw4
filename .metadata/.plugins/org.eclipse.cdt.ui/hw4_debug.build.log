@@ -1,6 +1,6 @@
-10:50:28 **** Incremental Build of configuration Debug for project hw4_debug ****
+11:11:49 **** Incremental Build of configuration Debug for project hw4_debug ****
 make all 
-make: Warning: File 'subdir.mk' has modification time 0.89 s in the future
+make: Warning: File 'subdir.mk' has modification time 0.2 s in the future
 Building file: ../core_api.cpp
 Invoking: GCC C++ Compiler
 g++ -O0 -g3 -Wall -c -fmessage-length=0 -MMD -MP -MF"core_api.d" -MT"core_api.o" -o "core_api.o" "../core_api.cpp"
@@ -9,9 +9,10 @@ Finished building: ../core_api.cpp
 Building target: hw4_debug
 Invoking: GCC C++ Linker
 g++  -o "hw4_debug"  ./.metadata/.plugins/org.eclipse.cdt.make.core/specs.o  ./core_api.o ./main.o ./sim_api.o   
-Finished building target: hw4_debug
- 
-make: warning:  Clock skew detected.  Your build may be incomplete.
+/usr/bin/ld: cannot open output file hw4_debug: Text file busy
+makefile:45: recipe for target 'hw4_debug' failed
+collect2: error: ld returned 1 exit status
+make: *** [hw4_debug] Error 1
 
-10:50:29 Build Finished (took 1s.381ms)
+11:11:50 Build Finished (took 1s.273ms)
 
